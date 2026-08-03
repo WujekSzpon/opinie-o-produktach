@@ -35,8 +35,8 @@
 
         <div class="field">
           <label for="photo">Zdjęcie <span class="optional">(opcjonalnie)</span></label>
-          <span class="field-title">Avatar zastępczy, jeśli nie dodasz zdjęcia</span>
-          <div class="avatar-choice"><label><input type="radio" name="default-avatar" value="male" checked> Męski</label><label><input type="radio" name="default-avatar" value="female"> Żeński</label></div>
+          <div id="avatar-fallback-controls"><span class="field-title">Avatar zastępczy, jeśli nie dodasz zdjęcia</span>
+          <div class="avatar-choice"><label><input type="radio" name="default-avatar" value="male" checked> Męski</label><label><input type="radio" name="default-avatar" value="female"> Żeński</label></div></div>
           <div class="photo-area">
             <input id="photo" type="file" accept="image/png,image/jpeg,image/webp" hidden>
             <button class="file-button" type="button" onclick="document.getElementById('photo').click()">WYBIERZ ZDJĘCIE</button>
@@ -278,9 +278,9 @@ async function sendReview() {
 
 function loadPhoto(event) {
   const file=event.target.files?.[0];if(!file)return;if(!/^image\/(png|jpeg|webp)$/i.test(file.type))return setStatus('Wybierz plik PNG, JPG albo WebP.',true);if(file.size>8*1024*1024)return setStatus('Zdjęcie wejściowe może mieć maksymalnie 8 MB.',true);
-  const image=new Image();image.onload=()=>{photoImage=image;photoZoom=1;photoOffsetX=0;photoOffsetY=0;$('zoom').value='1';$('zoom-value').textContent='100%';$('crop-shell').classList.add('open');$('crop-settings').hidden=false;$('remove-photo').hidden=false;drawCropEditor();renderBothReviews();URL.revokeObjectURL(image.src);};image.src=URL.createObjectURL(file);
+  const image=new Image();image.onload=()=>{photoImage=image;photoZoom=1;photoOffsetX=0;photoOffsetY=0;$('zoom').value='1';$('zoom-value').textContent='100%';$('avatar-fallback-controls').hidden=true;$('crop-shell').classList.add('open');$('crop-settings').hidden=false;$('remove-photo').hidden=false;drawCropEditor();renderBothReviews();URL.revokeObjectURL(image.src);};image.src=URL.createObjectURL(file);
 }
-function removePhoto(){photoImage=null;photoZoom=1;photoOffsetX=0;photoOffsetY=0;$('photo').value='';$('crop-shell').classList.remove('open');$('crop-settings').hidden=true;$('remove-photo').hidden=true;renderBothReviews();}
+function removePhoto(){photoImage=null;photoZoom=1;photoOffsetX=0;photoOffsetY=0;$('photo').value='';$('avatar-fallback-controls').hidden=false;$('crop-shell').classList.remove('open');$('crop-settings').hidden=true;$('remove-photo').hidden=true;renderBothReviews();}
 function centerPhoto(){if(!photoImage)return;photoOffsetX=0;photoOffsetY=0;drawCropEditor();renderBothReviews();}
 
 function startDrag(event){if(!photoImage)return;dragState={x:event.clientX,y:event.clientY};$('crop-canvas').classList.add('dragging');$('crop-canvas').setPointerCapture?.(event.pointerId);}
