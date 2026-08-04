@@ -47,7 +47,7 @@
         </div>
 
         <div class="field wide"><span class="field-title">Ocena produktu</span><div class="stars" id="stars" role="radiogroup" aria-label="Ocena od 1 do 5 gwiazdek"></div></div>
-        <div class="field wide"><label for="review">Krótka opinia</label><div style="margin:4px 0 8px;color:#aaa;font-size:12px;line-height:1.45;">Napisz opinię — maksymalnie 400 znaków. Możesz polecić ten produkt innym gitarzystom lub powiedzieć mi, co warto w nim jeszcze poprawić.</div><textarea id="review" maxlength="400" placeholder="Napisz swoją opinię…" required></textarea><div class="counter" id="counter">0 / 400</div></div>
+        <div class="field wide"><label for="review">Krótka opinia</label><div style="margin:4px 0 8px;color:#aaa;font-size:12px;line-height:1.45;">Możesz wpisać maksymalnie 400 znaków, ale dla najlepszej czytelności sugerujemy nie więcej niż 200 znaków. Możesz polecić produkt innym gitarzystom lub powiedzieć mi, co warto w nim poprawić.</div><textarea id="review" maxlength="400" placeholder="Napisz swoją opinię…" required></textarea><div class="counter" id="counter">0 / 400</div></div>
 
         <div class="consent-block wide"><div class="consent-title">Zgoda na przyjęcie i obsługę opinii</div><label class="check"><input id="data-consent" type="checkbox" required><span>Potwierdzam, że zapoznałem(-am) się z informacją o przetwarzaniu danych i zgadzam się na wykorzystanie podanych danych w celu odebrania oraz obsługi mojej opinii. <b>(wymagane)</b></span></label></div>
         <div class="consent-block wide"><div class="consent-title">Zgoda na publikację opinii</div><label class="check"><input id="publication-consent" type="checkbox"><span>Zgadzam się na nieodpłatne opublikowanie opinii, podpisu i przesłanego zdjęcia w materiałach dotyczących wybranego produktu, na stronie internetowej i w mediach społecznościowych. Wiem, że mogę wycofać tę zgodę. <b>(dobrowolne)</b></span></label></div>
@@ -244,9 +244,10 @@ function renderReviewTheme(theme,canvas){return renderReviewTemplate(theme==='li
 
 function renderBothReviews(){return{light:renderReviewTheme('light',$('output-light')),dark:renderReviewTheme('dark',$('output-dark'))};}
 
-function safeFileName() { return ($('name').value.trim()||'opinia').replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,45)||'opinia'; }
+function safeReviewFilePart(value,fallback){return String(value||'').replace(/[<>:"/\\|?*\u0000-\u001F]/g,'').replace(/\s+/g,' ').trim().replace(/[. ]+$/g,'').slice(0,80)||fallback;}
+function reviewFileName(variant='jasna'){const product=safeReviewFilePart($('product').value,'PRODUKT').toLocaleUpperCase('pl-PL');const name=safeReviewFilePart($('name').value,'Klient');const color=variant==='ciemna'?'Ciemna':'Jasna';return `${product} - ${name} - ${color}.png`;}
 function triggerPngDownload(canvas,fileName){const link=document.createElement('a');link.download=fileName;link.href=canvas.toDataURL('image/png');link.click();}
-function downloadPngs(){const rendered=renderBothReviews(),base=safeFileName();triggerPngDownload(rendered.light,`opinia-${base}-jasna.png`);triggerPngDownload(rendered.dark,`opinia-${base}-ciemna.png`);setStatus('Rozpoczęto pobieranie jasnej i ciemnej wersji PNG. Przeglądarka może poprosić o zgodę na wiele plików.');}
+function downloadPngs(){const rendered=renderBothReviews();triggerPngDownload(rendered.light,reviewFileName('jasna'));triggerPngDownload(rendered.dark,reviewFileName('ciemna'));setStatus('Rozpoczęto pobieranie jasnej i ciemnej wersji PNG. Przeglądarka może poprosić o zgodę na wiele plików.');}
 
 function validateForm() {
   if (!$('product').value) return 'Wybierz produkt lub usługę z listy.';
@@ -266,7 +267,7 @@ async function sendReview() {
   const last=Number(localStorage.getItem(COOLDOWN_STORAGE_KEY)||0);if(Date.now()-last<60000)return setStatus('Opinia była przed chwilą wysyłana. Odczekaj minutę przed kolejną próbą.',true);
   const rendered=renderBothReviews(),lightPngData=rendered.light.toDataURL('image/png'),darkPngData=rendered.dark.toDataURL('image/png');
   const lightBytes=Math.ceil((lightPngData.length-lightPngData.indexOf(',')-1)*.75),darkBytes=Math.ceil((darkPngData.length-darkPngData.indexOf(',')-1)*.75);if(lightBytes>MAX_IMAGE_BYTES||darkBytes>MAX_IMAGE_BYTES)return setStatus('Jedna z wygenerowanych grafik PNG jest zbyt duża. Użyj mniejszego zdjęcia.',true);
-  const base=safeFileName();const payload={token:FORM_TOKEN,product:$('product').value,name:$('name').value.trim(),email:'',rating,review:$('review').value.trim(),consentData:$('data-consent').checked,consentPublication:$('publication-consent').checked,hasPhoto:Boolean(photoImage),lightPngData,darkPngData,lightFileName:`opinia-${base}-jasna.png`,darkFileName:`opinia-${base}-ciemna.png`,openedAt:new Date(formOpenedAt).toISOString(),submittedAt:new Date().toISOString(),sourceUrl:location.href,website:$('website').value};
+  const payload={token:FORM_TOKEN,product:$('product').value,name:$('name').value.trim(),email:'',rating,review:$('review').value.trim(),consentData:$('data-consent').checked,consentPublication:$('publication-consent').checked,hasPhoto:Boolean(photoImage),lightPngData,darkPngData,lightFileName:reviewFileName('jasna'),darkFileName:reviewFileName('ciemna'),openedAt:new Date(formOpenedAt).toISOString(),submittedAt:new Date().toISOString(),sourceUrl:location.href,website:$('website').value};
   setSendButtonState('sending');setStatus('Przekazuję opinię do Google Apps Script…');
   try{
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
