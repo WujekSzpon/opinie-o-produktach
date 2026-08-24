@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bezpośrednie linki do opinii o produktach</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d0d0f; --card:#18181b; --line:#303036; --text:#f5f5f5; --muted:#b8b8c0; --yellow:#ffd000; --pink:#ed1160; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 Arial,sans-serif; }
+    main { width:min(1100px,calc(100% - 28px)); margin:36px auto; }
+    h1 { margin:0 0 8px; font-size:clamp(25px,4vw,42px); }
+    .lead { color:var(--muted); margin:0 0 26px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+    button { border:1px solid var(--line); border-radius:10px; background:#202024; color:#fff; padding:11px 15px; font-weight:700; cursor:pointer; }
+    button:hover { border-color:var(--yellow); color:var(--yellow); }
+    ol { margin:0; padding:0; list-style:none; display:grid; gap:10px; counter-reset:item; }
+    li { counter-increment:item; display:grid; grid-template-columns:minmax(220px,32%) 22px minmax(0,1fr); align-items:center; gap:8px; padding:13px 15px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+    li::before { content:counter(item) "."; color:#777; position:absolute; transform:translateX(-38px); }
+    .open { color:var(--yellow); font-weight:800; text-decoration:none; }
+    .open:hover { text-decoration:underline; }
+    .dash { text-align:center; color:#777; }
+    .copy { min-width:0; border:0; padding:0; background:transparent; color:var(--muted); font:inherit; text-align:left; overflow-wrap:anywhere; cursor:pointer; }
+    .copy:hover { color:#fff; text-decoration:underline; }
+    .copy::after { content:"  ⧉"; color:var(--pink); font-weight:900; }
+    #toast { position:fixed; left:50%; bottom:24px; translate:-50% 20px; opacity:0; pointer-events:none; background:#202024; border:1px solid var(--pink); box-shadow:0 0 18px #ed116066; border-radius:12px; padding:12px 18px; font-weight:800; transition:.2s ease; }
+    #toast.show { opacity:1; translate:-50% 0; }
+    @media (max-width:700px) {
+      main { margin:22px auto; }
+      li { grid-template-columns:1fr; gap:5px; }
+      li::before { display:none; }
+      .dash { display:none; }
+      .copy { font-size:13px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Linki do wystawiania opinii</h1>
+    <p class="lead">Kliknij żółtą nazwę, aby otworzyć formularz z wybranym produktem. Kliknij pełny adres po myślniku, aby skopiować go do schowka.</p>
+    <div class="actions"><button id="copyAll">⧉ KOPIUJ WSZYSTKIE LINKI</button></div>
+    <ol id="links"></ol>
+  </main>
+  <div id="toast" role="status" aria-live="polite">Link skopiowany</div>
+  <script>
+    const base = 'https://wujekszpon.github.io/opinie-o-produktach/';
+    const products = [
+      ['Najlepsze Polskie Riffy','najlepsze-polskie-riffy'],
+      ['Gitarowe Ćwiczenia','gitarowe-cwiczenia'],
+      ['Oryginalne Aranżacje','oryginalne-aranzacje'],
+      ['Najlepsze Polskie Solówki','najlepsze-polskie-solowki'],
+      ['Opracowania Fingerstyle','opracowania-fingerstyle'],
+      ['Linia Melodyczna','linia-melodyczna'],
+      ['Mistrz Jednej Struny','mistrz-jednej-struny'],
+      ['Świąteczne Opracowania','swiateczne-opracowania'],
+      ['Teoria Muzyki','teoria-muzyki'],
+      ['Bicia Akordowe','bicia-akordowe'],
+      ['Schematy skal na gryfie','schematy-skal-na-gryfie'],
+      ['Schematy tonacji na gryfie','schematy-tonacji-na-gryfie'],
+      ['Interwały na gryfie „w pigułce”','interwaly-na-gryfie-w-pigulce'],
+      ['20 Zagrywek Blues-Moll','20-zagrywek-blues-moll'],
+      ['Gitarowy Mentoring','gitarowy-mentoring'],
+      ['Lekcje Online','lekcje-online'],
+      ['Transkrypcja Utworu','transkrypcja-utworu']
+    ];
+    const list = document.querySelector('#links');
+    const toast = document.querySelector('#toast');
+    let toastTimer;
+    function urlFor(slug) { return base + '?produkt=' + slug; }
+    async function copyText(text, message='Link skopiowany') {
+      try { await navigator.clipboard.writeText(text); }
+      catch (_) {
+        const area = document.createElement('textarea'); area.value=text; document.body.append(area); area.select(); document.execCommand('copy'); area.remove();
+      }
+      toast.textContent=message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1800);
+    }
+    products.forEach(([name,slug]) => {
+      const url=urlFor(slug), li=document.createElement('li');
+      li.innerHTML=`<a class="open" href="${url}" target="_blank" rel="noopener">${name}</a><span class="dash">—</span><button class="copy" type="button" title="Kliknij, aby skopiować">${url}</button>`;
+      li.querySelector('.copy').addEventListener('click',()=>copyText(url)); list.append(li);
+    });
+    document.querySelector('#copyAll').addEventListener('click',()=>copyText(products.map(([name,slug])=>`${name} - ${urlFor(slug)}`).join('\n'),'Skopiowano wszystkie linki'));
+  </script>
+</body>
+</html>
+
