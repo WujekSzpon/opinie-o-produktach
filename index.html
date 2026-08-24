@@ -69,7 +69,7 @@
 const FORM_TOKEN = 'WSG_OPINIA_2026_V1';
 const DEFAULT_APPS_SCRIPT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwvWlBF6u7UxVi5vCulYTtm_Z_gumekiDf_SJvlfJndHgIMjWGXsNYb0Vg6zGDa1XF_/exec';
 const PRODUCTS_URL = './produkty-opinie.json';
-const FALLBACK_PRODUCTS = Object.freeze(['Najlepsze Polskie Riffy','Gitarowe Ćwiczenia','Teoria Muzyki','Bicia Akordowe','Schematy skal na gryfie','Schematy tonacji na gryfie','Interwały na gryfie „w pigułce”','20 Zagrywek Blues-Moll','Świąteczne Opracowania na gitarę']);
+const FALLBACK_PRODUCTS = Object.freeze(['Najlepsze Polskie Riffy','Gitarowe Ćwiczenia','Teoria Muzyki','Bicia Akordowe','Schematy skal na gryfie','Schematy tonacji na gryfie','Interwały na gryfie „w pigułce”','20 Zagrywek Blues-Moll','Świąteczne Opracowania','Gitarowy Mentoring','Lekcje Online','Transkrypcja Utworu','Oryginalne Aranżacje','Najlepsze Polskie Solówki','Opracowania Fingerstyle','Linia Melodyczna','Mistrz Jednej Struny']);
 const COOLDOWN_STORAGE_KEY = 'wsg_review_last_submission';
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const formOpenedAt = Date.now();
@@ -112,6 +112,25 @@ function setSendButtonState(state) {
   button.setAttribute('aria-label', state === 'sent' ? 'Opinia wysłana' : state === 'sending' ? 'Wysyłanie opinii' : 'Wyślij opinię');
 }
 
+function productSlug(value) {
+  return String(value || '')
+    .toLocaleLowerCase('pl-PL')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function applyProductFromUrl(products) {
+  const requested = new URLSearchParams(window.location.search).get('produkt');
+  if (!requested) return;
+  const requestedSlug = productSlug(requested);
+  const product = products.find(item => productSlug(item) === requestedSlug);
+  if (!product) return;
+  $('product').value = product;
+}
+
 function setProductOptions(products) {
   const select = $('product');
   const current = select.value;
@@ -128,6 +147,7 @@ function setProductOptions(products) {
     return option;
   }));
   select.value = clean.includes(current) ? current : '';
+  applyProductFromUrl(clean);
   renderBothReviews();
 }
 
@@ -295,3 +315,4 @@ buildStars();setRating(5);renderBothReviews();preloadDefaultAvatars();loadProduc
 </script>
 </body>
 </html>
+
