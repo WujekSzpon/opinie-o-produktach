@@ -44,43 +44,112 @@
   <div id="toast" role="status" aria-live="polite">Link skopiowany</div>
   <script>
     const base = 'https://wujekszpon.github.io/opinie-o-produktach/';
-    const products = [
-      ['Najlepsze Polskie Riffy','najlepsze-polskie-riffy'],
-      ['Gitarowe Ćwiczenia','gitarowe-cwiczenia'],
-      ['Oryginalne Aranżacje','oryginalne-aranzacje'],
-      ['Najlepsze Polskie Solówki','najlepsze-polskie-solowki'],
-      ['Opracowania Fingerstyle','opracowania-fingerstyle'],
-      ['Linia Melodyczna','linia-melodyczna'],
-      ['Mistrz Jednej Struny','mistrz-jednej-struny'],
-      ['Świąteczne Opracowania','swiateczne-opracowania'],
-      ['Teoria Muzyki','teoria-muzyki'],
-      ['Bicia Akordowe','bicia-akordowe'],
-      ['Schematy skal na gryfie','schematy-skal-na-gryfie'],
-      ['Schematy tonacji na gryfie','schematy-tonacji-na-gryfie'],
-      ['Interwały na gryfie „w pigułce”','interwaly-na-gryfie-w-pigulce'],
-      ['20 Zagrywek Blues-Moll','20-zagrywek-blues-moll'],
-      ['Gitarowy Mentoring','gitarowy-mentoring'],
-      ['Lekcje Online','lekcje-online'],
-      ['Transkrypcja Utworu','transkrypcja-utworu']
+    const productsUrl = 'https://raw.githubusercontent.com/WujekSzpon/opinie-o-produktach/main/produkty-opinie.json';
+    const fallbackProducts = [
+      'Gitarowy GPS E Book',
+      'Gitarowy GPS Aplikacja',
+      'Najlepsze Polskie Riffy',
+      'Gitarowe Ćwiczenia',
+      'Teoria Muzyki',
+      'Bicia Akordowe',
+      'Schematy skal na gryfie',
+      'Schematy tonacji na gryfie',
+      'Interwały na gryfie „w pigułce”',
+      '20 Zagrywek Blues-Moll',
+      'Świąteczne Opracowania',
+      'Gitarowy Mentoring',
+      'Lekcje Online',
+      'Transkrypcja Utworu',
+      'Oryginalne Aranżacje',
+      'Najlepsze Polskie Solówki',
+      'Opracowania Fingerstyle',
+      'Linia Melodyczna',
+      'Mistrz Jednej Struny'
     ];
+
     const list = document.querySelector('#links');
     const toast = document.querySelector('#toast');
+    let products = [];
     let toastTimer;
-    function urlFor(slug) { return base + '?produkt=' + slug; }
+
+    function productSlug(value) {
+      return String(value || '')
+        .toLocaleLowerCase('pl-PL')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ł/g, 'l')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function urlFor(name) { return base + '?produkt=' + productSlug(name); }
+
     async function copyText(text, message='Link skopiowany') {
       try { await navigator.clipboard.writeText(text); }
       catch (_) {
-        const area = document.createElement('textarea'); area.value=text; document.body.append(area); area.select(); document.execCommand('copy'); area.remove();
+        const area = document.createElement('textarea');
+        area.value = text;
+        document.body.append(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
       }
-      toast.textContent=message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1800);
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
     }
-    products.forEach(([name,slug]) => {
-      const url=urlFor(slug), li=document.createElement('li');
-      li.innerHTML=`<a class="open" href="${url}" target="_blank" rel="noopener">${name}</a><span class="dash">—</span><button class="copy" type="button" title="Kliknij, aby skopiować">${url}</button>`;
-      li.querySelector('.copy').addEventListener('click',()=>copyText(url)); list.append(li);
+
+    function renderProducts(items) {
+      products = [...new Set(items.map(item => String(item).trim()).filter(Boolean))];
+      list.replaceChildren();
+
+      products.forEach(name => {
+        const url = urlFor(name);
+        const li = document.createElement('li');
+        const open = document.createElement('a');
+        const dash = document.createElement('span');
+        const copy = document.createElement('button');
+
+        open.className = 'open';
+        open.href = url;
+        open.target = '_blank';
+        open.rel = 'noopener';
+        open.textContent = name;
+
+        dash.className = 'dash';
+        dash.textContent = '—';
+
+        copy.className = 'copy';
+        copy.type = 'button';
+        copy.title = 'Kliknij, aby skopiować';
+        copy.textContent = url;
+        copy.addEventListener('click', () => copyText(url));
+
+        li.append(open, dash, copy);
+        list.append(li);
+      });
+    }
+
+    async function loadProducts() {
+      renderProducts(fallbackProducts);
+      try {
+        const response = await fetch(`${productsUrl}?v=${Date.now()}`, {cache:'no-store'});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const items = Array.isArray(data) ? data : data.products;
+        if (!Array.isArray(items)) throw new Error('Nieprawidłowy format listy produktów');
+        renderProducts(items);
+      } catch (error) {
+        console.warn('Nie udało się pobrać listy produktów z GitHuba. Używam listy zapasowej.', error);
+      }
+    }
+
+    document.querySelector('#copyAll').addEventListener('click', () => {
+      copyText(products.map(name => `${name} - ${urlFor(name)}`).join('\n'), 'Skopiowano wszystkie linki');
     });
-    document.querySelector('#copyAll').addEventListener('click',()=>copyText(products.map(([name,slug])=>`${name} - ${urlFor(slug)}`).join('\n'),'Skopiowano wszystkie linki'));
+
+    loadProducts();
   </script>
 </body>
 </html>
-
