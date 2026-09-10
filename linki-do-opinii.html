@@ -3,48 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Bezpośrednie linki do opinii o produktach</title>
+  <meta name="theme-color" content="#0d0d0f">
+  <title>Linki do wystawiania opinii</title>
   <style>
-    :root { color-scheme: dark; --bg:#0d0d0f; --card:#18181b; --line:#303036; --text:#f5f5f5; --muted:#b8b8c0; --yellow:#ffd000; --pink:#ed1160; }
+    :root { color-scheme:dark; --bg:#0d0d0f; --card:#18181b; --line:#303036; --text:#f5f5f5; --muted:#b8b8c0; --yellow:#ffd000; --pink:#ed1160; }
     * { box-sizing:border-box; }
-    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 Arial,sans-serif; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:16px/1.5 Arial,sans-serif; }
     main { width:min(1100px,calc(100% - 28px)); margin:36px auto; }
     h1 { margin:0 0 8px; font-size:clamp(25px,4vw,42px); }
-    .lead { color:var(--muted); margin:0 0 26px; }
+    .lead { max-width:780px; color:var(--muted); margin:0 0 24px; }
     .actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-    button { border:1px solid var(--line); border-radius:10px; background:#202024; color:#fff; padding:11px 15px; font-weight:700; cursor:pointer; }
+    button,.button { min-height:46px; border-radius:10px; font-weight:800; cursor:pointer; transition:.15s ease; }
+    button { border:1px solid var(--line); background:#202024; color:#fff; padding:11px 15px; }
     button:hover { border-color:var(--yellow); color:var(--yellow); }
-    ol { margin:0; padding:0; list-style:none; display:grid; gap:10px; counter-reset:item; }
-    li { counter-increment:item; display:grid; grid-template-columns:minmax(220px,32%) 22px minmax(0,1fr); align-items:center; gap:8px; padding:13px 15px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
-    li::before { content:counter(item) "."; color:#777; position:absolute; transform:translateX(-38px); }
-    .open { color:var(--yellow); font-weight:800; text-decoration:none; }
-    .open:hover { text-decoration:underline; }
-    .dash { text-align:center; color:#777; }
-    .copy { min-width:0; border:0; padding:0; background:transparent; color:var(--muted); font:inherit; text-align:left; overflow-wrap:anywhere; cursor:pointer; }
-    .copy:hover { color:#fff; text-decoration:underline; }
-    .copy::after { content:"  ⧉"; color:var(--pink); font-weight:900; }
-    #toast { position:fixed; left:50%; bottom:24px; translate:-50% 20px; opacity:0; pointer-events:none; background:#202024; border:1px solid var(--pink); box-shadow:0 0 18px #ed116066; border-radius:12px; padding:12px 18px; font-weight:800; transition:.2s ease; }
+    #status { min-height:24px; margin:0 0 12px; color:var(--muted); font-size:14px; }
+    ol { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:10px; border:1px solid var(--line); border-radius:14px; background:var(--card); }
+    .open { display:flex; align-items:center; justify-content:center; min-width:0; padding:12px 16px; border:1px solid var(--yellow); border-radius:10px; background:var(--yellow); color:#111; font-weight:900; text-align:center; text-decoration:none; }
+    .open:hover { background:#ffe04c; border-color:#ffe04c; transform:translateY(-1px); }
+    .copy { width:48px; padding:0; font-size:20px; line-height:1; }
+    .copy:hover { transform:translateY(-1px); }
+    #toast { position:fixed; z-index:5; left:50%; bottom:24px; translate:-50% 20px; opacity:0; pointer-events:none; background:#202024; border:1px solid var(--pink); box-shadow:0 0 18px #ed116066; border-radius:12px; padding:12px 18px; font-weight:800; transition:.2s ease; }
     #toast.show { opacity:1; translate:-50% 0; }
-    @media (max-width:700px) {
+    @media (max-width:760px) {
       main { margin:22px auto; }
-      li { grid-template-columns:1fr; gap:5px; }
-      li::before { display:none; }
-      .dash { display:none; }
-      .copy { font-size:13px; }
+      ol { grid-template-columns:1fr; }
+      li { grid-template-columns:minmax(0,1fr) 44px; }
+      .open { justify-content:flex-start; text-align:left; }
+      .copy { width:44px; }
     }
+    @media (prefers-reduced-motion:reduce) { button,.button,#toast { transition:none; } }
   </style>
 </head>
 <body>
   <main>
     <h1>Linki do wystawiania opinii</h1>
-    <p class="lead">Kliknij żółtą nazwę, aby otworzyć formularz z wybranym produktem. Kliknij pełny adres po myślniku, aby skopiować go do schowka.</p>
-    <div class="actions"><button id="copyAll">⧉ KOPIUJ WSZYSTKIE LINKI</button></div>
+    <p class="lead">Kliknij nazwę produktu, aby otworzyć formularz z właściwą pozycją już wybraną. Przycisk ⧉ kopiuje pojedynczy link.</p>
+    <div class="actions"><button id="copyAll" type="button">⧉ KOPIUJ WSZYSTKIE LINKI</button></div>
+    <p id="status" role="status">Wczytywanie produktów…</p>
     <ol id="links"></ol>
   </main>
   <div id="toast" role="status" aria-live="polite">Link skopiowany</div>
   <script>
     const base = 'https://wujekszpon.github.io/opinie-o-produktach/';
-    const productsUrl = 'https://raw.githubusercontent.com/WujekSzpon/opinie-o-produktach/main/produkty-opinie.json';
+    const productsUrl = './produkty-opinie.json';
     const fallbackProducts = [
       'Gitarowy GPS E Book',
       'Gitarowy GPS Aplikacja',
@@ -66,90 +68,58 @@
       'Linia Melodyczna',
       'Mistrz Jednej Struny'
     ];
-
     const list = document.querySelector('#links');
+    const status = document.querySelector('#status');
     const toast = document.querySelector('#toast');
     let products = [];
     let toastTimer;
-
     function productSlug(value) {
-      return String(value || '')
-        .toLocaleLowerCase('pl-PL')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/ł/g, 'l')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+      return String(value || '').toLocaleLowerCase('pl-PL').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     }
-
-    function urlFor(name) { return base + '?produkt=' + productSlug(name); }
-
+    function urlFor(name) { return `${base}?produkt=${encodeURIComponent(productSlug(name))}`; }
     async function copyText(text, message='Link skopiowany') {
       try { await navigator.clipboard.writeText(text); }
       catch (_) {
         const area = document.createElement('textarea');
-        area.value = text;
-        document.body.append(area);
-        area.select();
-        document.execCommand('copy');
-        area.remove();
+        area.value=text; document.body.append(area); area.select(); document.execCommand('copy'); area.remove();
       }
-      toast.textContent = message;
-      toast.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+      toast.textContent=message; toast.classList.add('show'); clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>toast.classList.remove('show'),1800);
     }
-
     function renderProducts(items) {
-      products = [...new Set(items.map(item => String(item).trim()).filter(Boolean))];
+      products=[...new Set(items.map(item=>String(item).trim()).filter(Boolean))];
       list.replaceChildren();
-
-      products.forEach(name => {
-        const url = urlFor(name);
-        const li = document.createElement('li');
-        const open = document.createElement('a');
-        const dash = document.createElement('span');
-        const copy = document.createElement('button');
-
-        open.className = 'open';
-        open.href = url;
-        open.target = '_blank';
-        open.rel = 'noopener';
-        open.textContent = name;
-
-        dash.className = 'dash';
-        dash.textContent = '—';
-
-        copy.className = 'copy';
-        copy.type = 'button';
-        copy.title = 'Kliknij, aby skopiować';
-        copy.textContent = url;
-        copy.addEventListener('click', () => copyText(url));
-
-        li.append(open, dash, copy);
-        list.append(li);
-      });
+      for (const name of products) {
+        const url=urlFor(name), li=document.createElement('li');
+        const open=document.createElement('a'), copy=document.createElement('button');
+        open.className='open button'; open.href=url; open.target='_blank'; open.rel='noopener';
+        open.textContent=name; open.setAttribute('aria-label',`Wystaw opinię: ${name}`);
+        copy.className='copy'; copy.type='button'; copy.textContent='⧉';
+        copy.title=`Kopiuj link: ${name}`; copy.setAttribute('aria-label',copy.title);
+        copy.addEventListener('click',()=>copyText(url));
+        li.append(open,copy); list.append(li);
+      }
+      status.textContent=`Dostępne produkty i usługi: ${products.length}`;
     }
-
     async function loadProducts() {
-      renderProducts(fallbackProducts);
       try {
-        const response = await fetch(`${productsUrl}?v=${Date.now()}`, {cache:'no-store'});
+        const response=await fetch(`${productsUrl}?v=${Date.now()}`,{cache:'no-store'});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        const items = Array.isArray(data) ? data : data.products;
+        const data=await response.json(), items=Array.isArray(data)?data:data.products;
         if (!Array.isArray(items)) throw new Error('Nieprawidłowy format listy produktów');
         renderProducts(items);
       } catch (error) {
-        console.warn('Nie udało się pobrać listy produktów z GitHuba. Używam listy zapasowej.', error);
+        console.warn('Nie udało się pobrać listy produktów. Używam listy zapasowej.',error);
+        renderProducts(fallbackProducts); status.textContent+=' — wyświetlono listę zapasową';
       }
     }
-
-    document.querySelector('#copyAll').addEventListener('click', () => {
-      copyText(products.map(name => `${name} - ${urlFor(name)}`).join('\n'), 'Skopiowano wszystkie linki');
+    document.querySelector('#copyAll').addEventListener('click',()=>{
+      copyText(products.map(name=>`${name} - ${urlFor(name)}`).join('\n'),'Skopiowano wszystkie linki');
     });
-
     loadProducts();
   </script>
 </body>
 </html>
+
