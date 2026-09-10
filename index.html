@@ -67,11 +67,12 @@
 
 <script>
 const FORM_TOKEN = 'WSG_OPINIA_2026_V1';
-const DEFAULT_APPS_SCRIPT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwvWlBF6u7UxVi5vCulYTtm_Z_gumekiDf_SJvlfJndHgIMjWGXsNYb0Vg6zGDa1XF_/exec';
+const DEFAULT_APPS_SCRIPT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxV2ID6Cozaju8NlkSaIB0B0yNah3yLbIe2fgugAFWwaHD4ANRNniMmlue1y7S_kOZUwA/exec';
 const PRODUCTS_URL = './produkty-opinie.json';
 const FALLBACK_PRODUCTS = Object.freeze(['Najlepsze Polskie Riffy','Gitarowe Ćwiczenia','Teoria Muzyki','Bicia Akordowe','Schematy skal na gryfie','Schematy tonacji na gryfie','Interwały na gryfie „w pigułce”','20 Zagrywek Blues-Moll','Świąteczne Opracowania','Gitarowy Mentoring','Lekcje Online','Transkrypcja Utworu','Oryginalne Aranżacje','Najlepsze Polskie Solówki','Opracowania Fingerstyle','Linia Melodyczna','Mistrz Jednej Struny']);
-const COOLDOWN_STORAGE_KEY = 'wsg_review_last_submission';
+const COOLDOWN_STORAGE_KEY = 'wsg_review_last_submission:opinie-o-produktach';
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const FORM_CONFIRMATION_TIMEOUT_MS = 30000;
 const formOpenedAt = Date.now();
 let rating = 5;
 let photoImage = null;
@@ -97,6 +98,52 @@ const calibration = Object.freeze({groupX:-9,cardX:172,cardY:63,cardW:815,cardH:
 function getTemplate(id){return REVIEW_TEMPLATES.find(template=>template.id===id)||REVIEW_TEMPLATES[0];}
 
 function endpoint() { return DEFAULT_APPS_SCRIPT_ENDPOINT; }
+
+function createSubmissionId() {
+  if (globalThis.crypto?.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+  const bytes = new Uint8Array(24);
+  if (globalThis.crypto?.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function jsonpRequest(url, parameters, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const callback = `wsgProductReviewCallback_${createSubmissionId()}`;
+    const script = document.createElement('script');
+    const query = new URLSearchParams({...parameters, callback});
+    let settled = false;
+    const cleanup = () => { clearTimeout(timer); delete globalThis[callback]; script.remove(); };
+    const finish = (handler, value) => { if (settled) return; settled = true; cleanup(); handler(value); };
+    const timer = setTimeout(() => finish(reject, new Error('Usługa formularza nie odpowiedziała. Spróbuj ponownie za chwilę.')), timeoutMs);
+    globalThis[callback] = data => finish(resolve, data);
+    script.onerror = () => finish(reject, new Error('Nie udało się połączyć z usługą formularza. Sprawdź internet i spróbuj ponownie.'));
+    script.src = `${url}${url.includes('?') ? '&' : '?'}${query.toString()}`;
+    document.head.appendChild(script);
+  });
+}
+
+function waitForReceipt(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }
+
+async function confirmReceipt(url, submissionId) {
+  const deadline = Date.now() + FORM_CONFIRMATION_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const receipt = await jsonpRequest(url, {action:'status', token:FORM_TOKEN, id:submissionId}, 7000);
+    if (receipt?.status === 'delivered' && receipt.ok === true) return receipt;
+    if (receipt?.status === 'failed' || receipt?.ok === false) throw new Error(receipt?.error || 'Usługa odrzuciła opinię. Sprawdź dane i spróbuj ponownie.');
+    await waitForReceipt(1100);
+  }
+  throw new Error('Nie udało się potwierdzić odbioru opinii. Nie wysyłaj jej od razu ponownie — odczekaj chwilę i spróbuj jeszcze raz.');
+}
+
+async function submitWithReceipt(url, payload) {
+  const health = await jsonpRequest(url, {action:'health', token:FORM_TOKEN}, 8000);
+  if (!health?.ok || health?.supportsReceipts !== true) throw new Error('Usługa formularza jest nieaktualna lub chwilowo niedostępna. Spróbuj ponownie później.');
+  setStatus('Wysyłam opinię…');
+  await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  setStatus('Opinia wysłana. Czekam na potwierdzenie odbioru…');
+  return confirmReceipt(url, payload.submissionId);
+}
 
 const SEND_BUTTON_CONTENT = Object.freeze({
   idle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14l11-11"></path><path d="M21 3l-6.5 18a.55.55 0 0 1-1 0l-3.5-7l-7-3.5a.55.55 0 0 1 0-1z"></path></svg><span>WYŚLIJ OPINIĘ</span>',
@@ -285,14 +332,14 @@ async function sendReview() {
   const last=Number(localStorage.getItem(COOLDOWN_STORAGE_KEY)||0);if(Date.now()-last<60000)return setStatus('Opinia była przed chwilą wysyłana. Odczekaj minutę przed kolejną próbą.',true);
   const rendered=renderBothReviews(),lightPngData=rendered.light.toDataURL('image/png'),darkPngData=rendered.dark.toDataURL('image/png');
   const lightBytes=Math.ceil((lightPngData.length-lightPngData.indexOf(',')-1)*.75),darkBytes=Math.ceil((darkPngData.length-darkPngData.indexOf(',')-1)*.75);if(lightBytes>MAX_IMAGE_BYTES||darkBytes>MAX_IMAGE_BYTES)return setStatus('Jedna z wygenerowanych grafik PNG jest zbyt duża. Użyj mniejszego zdjęcia.',true);
-  const payload={token:FORM_TOKEN,product:$('product').value,name:$('name').value.trim(),email:'',rating,review:$('review').value.trim(),consentData:$('data-consent').checked,consentPublication:$('publication-consent').checked,hasPhoto:Boolean(photoImage),lightPngData,darkPngData,lightFileName:reviewFileName('jasna'),darkFileName:reviewFileName('ciemna'),openedAt:new Date(formOpenedAt).toISOString(),submittedAt:new Date().toISOString(),sourceUrl:location.href,website:$('website').value};
+  const payload={token:FORM_TOKEN,submissionId:createSubmissionId(),formType:'review',product:$('product').value,name:$('name').value.trim(),email:'',rating,review:$('review').value.trim(),consentData:$('data-consent').checked,consentPublication:$('publication-consent').checked,hasPhoto:Boolean(photoImage),lightPngData,darkPngData,lightFileName:reviewFileName('jasna'),darkFileName:reviewFileName('ciemna'),openedAt:new Date(formOpenedAt).toISOString(),submittedAt:new Date().toISOString(),sourceUrl:location.href,website:$('website').value};
   setSendButtonState('sending');setStatus('Przekazuję opinię do Google Apps Script…');
   try{
-    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    await submitWithReceipt(url,payload);
     localStorage.setItem(COOLDOWN_STORAGE_KEY,String(Date.now()));
-    setStatus('Opinia została przekazana do wysłania. Dziękuję! Jeśli wiadomość nie pojawi się w skrzynce, pobierz PNG i skontaktuj się mailowo.');
+    setStatus('Opinia została odebrana i wysłana. Dziękuję!');
     setSendButtonState('sent');
-  }catch(e){setStatus('Nie udało się połączyć ze skryptem Google. Sprawdź internet i adres wdrożenia.',true);setSendButtonState('idle');}
+  }catch(e){setStatus(e?.message || 'Nie udało się potwierdzić wysłania opinii. Spróbuj ponownie za chwilę.',true);setSendButtonState('idle');}
 }
 
 function loadPhoto(event) {
