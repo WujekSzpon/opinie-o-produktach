@@ -47,7 +47,7 @@
         </div>
 
         <div class="field wide"><span class="field-title">Ocena produktu</span><div class="stars" id="stars" role="radiogroup" aria-label="Ocena od 1 do 5 gwiazdek"></div></div>
-        <div class="field wide"><label for="review">Krótka opinia</label><div style="margin:4px 0 8px;color:#aaa;font-size:12px;line-height:1.45;">Możesz polecić produkt innym gitarzystom lub powiedzieć mi, co warto w nim poprawić.</div><textarea id="review" maxlength="400" placeholder="Napisz swoją opinię…" required></textarea><div class="counter-row"><span class="length-suggestion">Dla najlepszej czytelności sugerujemy nie więcej niż 200 znaków.</span><span class="counter" id="counter">0 / 400</span></div><div class="preview-wrap"><div class="preview-title">Podgląd jasnej i ciemnej wersji opinii</div><div class="dual-preview"><div class="preview-variant"><div class="preview-variant-title">Wersja jasna</div><div class="preview-surface"><canvas id="output-light" width="1024" height="576" aria-label="Jasna wersja wygenerowanej opinii"></canvas></div></div><div class="preview-variant"><div class="preview-variant-title">Wersja ciemna</div><div class="preview-surface"><canvas id="output-dark" width="1024" height="576" aria-label="Ciemna wersja wygenerowanej opinii"></canvas></div></div></div></div></div>
+        <div class="field wide"><label for="review">Krótka opinia</label><div id="review-guidance" style="margin:4px 0 8px;color:#aaa;font-size:12px;line-height:1.45;">Możesz polecić produkt innym gitarzystom lub powiedzieć mi, co warto w nim poprawić.</div><textarea id="review" maxlength="400" placeholder="Napisz swoją opinię…" required></textarea><div class="counter-row"><span class="length-suggestion">Dla najlepszej czytelności sugerujemy nie więcej niż 200 znaków.</span><span class="counter" id="counter">0 / 400</span></div><div class="preview-wrap"><div class="preview-title">Podgląd jasnej i ciemnej wersji opinii</div><div class="dual-preview"><div class="preview-variant"><div class="preview-variant-title">Wersja jasna</div><div class="preview-surface"><canvas id="output-light" width="1024" height="576" aria-label="Jasna wersja wygenerowanej opinii"></canvas></div></div><div class="preview-variant"><div class="preview-variant-title">Wersja ciemna</div><div class="preview-surface"><canvas id="output-dark" width="1024" height="576" aria-label="Ciemna wersja wygenerowanej opinii"></canvas></div></div></div></div></div>
 
         <div class="consent-block wide"><div class="consent-title">Zgoda na przyjęcie i obsługę opinii</div><label class="check"><input id="data-consent" type="checkbox" required><span>Potwierdzam, że zapoznałem(-am) się z informacją o przetwarzaniu danych i zgadzam się na wykorzystanie podanych danych w celu odebrania oraz obsługi mojej opinii. <b>(wymagane)</b></span></label></div>
         <div class="consent-block wide"><div class="consent-title">Zgoda na publikację opinii</div><label class="check"><input id="publication-consent" type="checkbox"><span>Zgadzam się na nieodpłatne opublikowanie opinii, podpisu i przesłanego zdjęcia w materiałach dotyczących wybranego produktu, na stronie internetowej i w mediach społecznościowych. Wiem, że mogę wycofać tę zgodę. <b>(dobrowolne)</b></span></label></div>
@@ -169,6 +169,13 @@ function productSlug(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function updateReviewGuidance() {
+  const gpsProducts = ['gitarowy-gps-aplikacja', 'gitarowy-gps-e-book'];
+  $('review-guidance').textContent = gpsProducts.includes(productSlug($('product').value))
+    ? 'Najbardziej pomocna opinia to konkretny przykład z Twojego grania. Napisz, nad czym pracujesz i jak Gitarowy GPS Ci w tym pomaga. Co dzięki niemu lepiej rozumiesz lub potrafisz zagrać? Podziel się swoim doświadczeniem z innymi gitarzystami.'
+    : 'Możesz polecić produkt innym gitarzystom lub powiedzieć mi, co warto w nim poprawić.';
+}
+
 function applyProductFromUrl(products) {
   const requested = new URLSearchParams(window.location.search).get('produkt');
   if (!requested) return;
@@ -195,6 +202,7 @@ function setProductOptions(products) {
   }));
   select.value = clean.includes(current) ? current : '';
   applyProductFromUrl(clean);
+  updateReviewGuidance();
   renderBothReviews();
 }
 
@@ -356,7 +364,7 @@ function endDrag(){dragState=null;$('crop-canvas').classList.remove('dragging');
 $('photo').addEventListener('change',loadPhoto);$('zoom').addEventListener('input',event=>{photoZoom=Number(event.target.value);$('zoom-value').textContent=`${Math.round(photoZoom*100)}%`;drawCropEditor();renderBothReviews();});
 $('crop-canvas').addEventListener('pointerdown',startDrag);$('crop-canvas').addEventListener('pointermove',moveDrag);$('crop-canvas').addEventListener('pointerup',endDrag);$('crop-canvas').addEventListener('pointercancel',endDrag);
 $('review').addEventListener('input',()=>{$('counter').textContent=`${$('review').value.length} / 400`;renderBothReviews();});
-$('name').addEventListener('input',renderBothReviews);$('product').addEventListener('change',renderBothReviews);
+$('name').addEventListener('input',renderBothReviews);$('product').addEventListener('change',()=>{updateReviewGuidance();renderBothReviews();});
 document.querySelectorAll('input[name="default-avatar"]').forEach(input=>input.addEventListener('change',event=>{defaultAvatarStyle=event.target.value;renderBothReviews();}));
 buildStars();setRating(5);renderBothReviews();preloadDefaultAvatars();loadProducts();
 </script>
