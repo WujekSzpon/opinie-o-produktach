@@ -169,6 +169,27 @@ function productSlug(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Optional GPS integration. Ordinary review links and delivery stay unchanged.
+const GPS_APP_ORIGIN = 'https://gitarowy-gps.wujekszpon.chatgpt.site';
+let gpsReceiptTimer;
+function notifyGpsReceipt(submissionId, product) {
+  const params = new URLSearchParams(location.search);
+  const nonce = params.get('gps_nonce');
+  if (params.get('gps_origin') !== GPS_APP_ORIGIN || !/^[a-f0-9]{64}$/.test(nonce || '') || productSlug(product) !== 'gitarowy-gps-aplikacja' || !window.opener) return;
+  const message = {type:'wsg-review-delivered',nonce,receipt:submissionId,product:'gitarowy-gps-aplikacja'};
+  let attempts = 0;
+  const send = () => { try { window.opener?.postMessage(message, GPS_APP_ORIGIN); } catch {} };
+  send();
+  clearInterval(gpsReceiptTimer);
+  gpsReceiptTimer = setInterval(() => { if (++attempts >= 30) clearInterval(gpsReceiptTimer); else send(); }, 1000);
+  const ack = event => {
+    if (event.origin !== GPS_APP_ORIGIN || event.source !== window.opener || event.data?.type !== 'gps-review-ack' || event.data?.nonce !== nonce) return;
+    clearInterval(gpsReceiptTimer);
+    window.removeEventListener('message', ack);
+  };
+  window.addEventListener('message', ack);
+}
+
 function updateReviewGuidance() {
   const gpsProducts = ['gitarowy-gps-aplikacja', 'gitarowy-gps-e-book'];
   $('review-guidance').textContent = gpsProducts.includes(productSlug($('product').value))
@@ -347,6 +368,7 @@ async function sendReview() {
     localStorage.setItem(COOLDOWN_STORAGE_KEY,String(Date.now()));
     setStatus('Opinia została odebrana i wysłana. Dziękuję!');
     setSendButtonState('sent');
+    try { notifyGpsReceipt(payload.submissionId, payload.product); } catch { /* Receipt handoff never blocks review delivery. */ }
   }catch(e){setStatus(e?.message || 'Nie udało się potwierdzić wysłania opinii. Spróbuj ponownie za chwilę.',true);setSendButtonState('idle');}
 }
 
